@@ -2,54 +2,55 @@
 using UnityEngine;
 
 /// <summary>
-/// Class to control objects that come out a limits field to realocate them
+/// Class to realocate an object out of a defined bounds back to its original position.
 /// </summary>
+[RequireComponent(typeof(Rigidbody))]
 public class RealocateToScene : MonoBehaviour
 {
     /// <summary>
-    /// The mesh of the limits field
+    /// The limits field.
     /// </summary>
     public MeshRenderer meshLimits;
 
     /// <summary>
-    /// The initial position of the object
+    /// Initial position of the object.
     /// </summary>
     private Vector3 initialPosition;
     /// <summary>
-    /// The positive limit point
+    /// The limits bounds.
     /// </summary>
     private Vector3 limitPosition;
     /// <summary>
-    /// Constant to wait till realocate the object to scene
+    /// Constant time in seconds to verify object again.
     /// </summary>
     private const int waitSeconds = 2;
     /// <summary>
-    /// The proper object's rigidbody
+    /// The proper rigidbody of the object.
     /// </summary>
     private new Rigidbody rigidbody;
 
     /// <summary>
-    /// Main setup
+    /// Default MonoBehavior Start().
     /// </summary>
-    void Start()
+    private void Start()
     {
         initialPosition = transform.position;
         rigidbody = GetComponent<Rigidbody>();
 
-        //Setando a posição limite
+        //Seting limit position
         limitPosition = meshLimits.bounds.extents;
 
         StartCoroutine(VerifyObject(waitSeconds));
     }
 
     /// <summary>
-    /// Verify if the object has surpassed the limit field perimeter each 2 seconds. If it has, realocate it.
+    /// Verify if the object is out of the bounds and realocate it if it is.
     /// </summary>
-    /// <param name="waitSeconds"></param>
-    /// <returns></returns>
-    IEnumerator VerifyObject(int waitSeconds)
+    /// <param name="waitSeconds">Time in seconds to redo the coroutine.</param>
+    /// <returns>WaitForSeconds(waitSeconds) to wait to redo the coroutine.</returns>
+    private IEnumerator VerifyObject(int waitSeconds)
     {
-        if (surpassLimits())
+        if (SurpassLimits())
         {
             transform.position = initialPosition;
             rigidbody.velocity = Vector3.zero;
@@ -62,12 +63,12 @@ public class RealocateToScene : MonoBehaviour
     }
 
     /// <summary>
-    /// Function to verify if the object has surpassed the limit field perimeter
+    /// Verify if the object surpassed the limits field, considering the offset in relation to the world.
     /// </summary>
-    /// <returns></returns>
-    bool surpassLimits()
+    /// <returns>True if the object surpassed the limits field, false if it doesn't.</returns>
+    private bool SurpassLimits()
     {
-        //Sempre considerar o offset em relação ao mundo
+        //Always consider the offset related to the world.
         return (transform.position.x > (limitPosition.x + meshLimits.transform.position.x) ||
             transform.position.x < (-limitPosition.x + meshLimits.transform.position.x) ||
             transform.position.y > (limitPosition.y + meshLimits.transform.position.y) ||
