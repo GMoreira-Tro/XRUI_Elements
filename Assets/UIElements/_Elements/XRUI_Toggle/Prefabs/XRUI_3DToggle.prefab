@@ -212,6 +212,24 @@ MonoBehaviour:
   useNearEvents: 0
   useTouchEvents: 0
   useSelectEvents: 0
+  onNearEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onNearExit:
+    m_PersistentCalls:
+      m_Calls: []
+  onTouchEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onTouchExit:
+    m_PersistentCalls:
+      m_Calls: []
+  onSelectEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onSelectExit:
+    m_PersistentCalls:
+      m_Calls: []
   nearColliderType: 1
   nearColliderScale: {x: 1.5, y: 1.5, z: 1.5}
   nearColliderRadius: 1
@@ -476,6 +494,9 @@ MonoBehaviour:
   isSelected: 1
   unselectPos: {x: 0, y: 0.5, z: 0}
   selectPos: {x: 0, y: -0.5, z: 0}
+  onToggleChange:
+    m_PersistentCalls:
+      m_Calls: []
   onToggleSelect:
     m_PersistentCalls:
       m_Calls: []

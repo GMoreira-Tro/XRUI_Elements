@@ -253,6 +253,24 @@ MonoBehaviour:
   useNearEvents: 0
   useTouchEvents: 0
   useSelectEvents: 0
+  onNearEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onNearExit:
+    m_PersistentCalls:
+      m_Calls: []
+  onTouchEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onTouchExit:
+    m_PersistentCalls:
+      m_Calls: []
+  onSelectEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  onSelectExit:
+    m_PersistentCalls:
+      m_Calls: []
   nearColliderType: 1
   nearColliderScale: {x: 2, y: 2, z: 2}
   nearColliderRadius: 1.5
@@ -376,6 +394,9 @@ MonoBehaviour:
   maxRange: 100
   symbol: '%'
   decimalPlaces: 0
+  onProgressChange:
+    m_PersistentCalls:
+      m_Calls: []
   backgroundMaterial: {fileID: 2100000, guid: 426b64eb64e9b7f499c7edcf0f943550, type: 2}
   elementMaterial: {fileID: 2100000, guid: b57645fda73799b4890c13245d4625c9, type: 2}
 --- !u!1 &5905469459256742036
