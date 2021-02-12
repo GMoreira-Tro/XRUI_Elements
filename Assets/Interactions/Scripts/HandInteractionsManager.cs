@@ -1,8 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
+using UserController;
 
 /// <summary>
-/// Class that permits the swap from a XRDirectInteractor in to a XRRayInteractor of a hand
+/// Class that permits the swap from a XRDirectInteractor in to a XRRayInteractor of a hand.
 /// </summary>
 [RequireComponent(typeof(RayAndDirect))]
 public class HandInteractionsManager : MonoBehaviour
@@ -12,149 +13,208 @@ public class HandInteractionsManager : MonoBehaviour
     /// </summary>
     public bool isLeftHand;
     /// <summary>
-    /// Enum of possible commands to execute in the next frame
+    /// HandLPController of the hand.
     /// </summary>
-    public enum nextFrameCommands
-    {
-        nothing = 0,
-        addRay = 1,
-        addDirect = 2
-    };
-
+    public HandLPController handLPController;
     /// <summary>
-    /// The point transform to attach the ray
+    /// The point transform to attach the ray.
     /// </summary>
     public Transform attachRayTransform;
     /// <summary>
-    /// The objects' name that spam when swap interaction
+    /// The reticle of the line visual string.
     /// </summary>
-    public string[] spamObjectsName;
+    public GameObject lineVisualReticle;
+    /// <summary>
+    /// The scale factor of the line visual's reticle.
+    /// </summary>
+    public float lineVisualReticleScaleFactor = 0.01f;
+    /// <summary>
+    /// The point transform to attach direct interactor.
+    /// </summary>
+    public Transform attachDirectTransform;
+    /// <summary>
+    /// The name of controller attach.
+    /// </summary>
+    public string controllerAttachName;
 
     /// <summary>
-    /// The instance of nextFrameCommands enum
+    /// Enum of possible commands to execute in the next frame.
     /// </summary>
-    private nextFrameCommands machineStates;
+    private enum NextFrameCommands
+    {
+        NOTHING,
+        ADD_RAY,
+        ADD_DIRECT
+    };
     /// <summary>
-    /// Is the hand selecting an object?
+    /// The instance of nextFrameCommands enum.
     /// </summary>
-    private bool isSelectingAnObject;
+    private NextFrameCommands nextFrameCommands;
     /// <summary>
-    /// Ray and Direct instance
+    /// Ray and Direct scripts that keeps the SOs.
     /// </summary>
     private RayAndDirect rayAndDirect;
+    /// <summary>
+    /// The ray component reference.
+    /// </summary>
+    private XRRayInteractor ray;
+    /// <summary>
+    /// The line visual component reference.
+    /// </summary>
+    private XRInteractorLineVisual lineVisual;
+    /// <summary>
+    /// The direct component reference.
+    /// </summary>
+    private XRDirectInteractor direct;
+    /// <summary>
+    /// The string of the indexTouch input.
+    /// </summary>
+    private string indexTouchString;
 
+    /// <summary>
+    /// Default MonoBehavior Start().
+    /// </summary>
     private void Start()
     {
         rayAndDirect = gameObject.GetComponent<RayAndDirect>();
-        eventConfiguration();
+        indexTouchString = isLeftHand ? "XRI_Left_IndexTouch" : "XRI_Right_IndexTouch";
+
+        try
+        {
+            direct = gameObject.GetComponent<XRDirectInteractor>();
+        }
+        catch (System.NullReferenceException)
+        {
+            ray = gameObject.GetComponent<XRRayInteractor>();
+            lineVisual = gameObject.GetComponent<XRInteractorLineVisual>();
+        }
     }
 
     /// <summary>
-    /// The setup to swap hand interaction type. Destroy current components of XRBaseInteractor
+    /// Default MonoBehavior FixedUpdate().
     /// </summary>
-    private void SwapInteraction()
+    private void FixedUpdate()
     {
-        XRRayInteractor ray = gameObject.GetComponent<XRRayInteractor>();
-
-        if (ray != null)
+        if (Input.GetAxis(indexTouchString) == 1)
         {
-            Destroy(ray);
-            Destroy(gameObject.GetComponent<XRInteractorLineVisual>());
-            machineStates = nextFrameCommands.addDirect;
-        }
-
-        else
-        {
-            Destroy(gameObject.GetComponent<XRDirectInteractor>());
-            machineStates = nextFrameCommands.addRay;
-        }
-    }
-
-    void LateUpdate()
-    {
-
-        if (machineStates != nextFrameCommands.nothing)
-        {
-            switch (machineStates)
+            if (ray)
             {
-                case nextFrameCommands.addDirect:
-                    addDirect();
-                    break;
-
-                case nextFrameCommands.addRay:
-                    addRay();
-                    break;
-            }
-
-            machineStates = nextFrameCommands.nothing;
-            eventConfiguration();
-
-            foreach (var spam in spamObjectsName)
-            {
-                Destroy(GameObject.Find(spam));
-            }
-        }
-
-        if (isLeftHand)
-        {
-            if (Input.GetKeyDown(OculusInput.ButtonX) && !isSelectingAnObject)
-            {
-                SwapInteraction();
+                if (lineVisual.reticle.activeSelf || ray.isSelectActive)
+                {
+                    return;
+                }
+                Destroy(ray);
+                Destroy(lineVisual);
+                nextFrameCommands = NextFrameCommands.ADD_DIRECT;
             }
         }
         else
         {
-            if (Input.GetKeyDown(OculusInput.ButtonA) && !isSelectingAnObject)
+            if (direct)
             {
-                SwapInteraction();
+                if (direct.isSelectActive)
+                {
+                    return;
+                }
+                Destroy(direct);
+                nextFrameCommands = NextFrameCommands.ADD_RAY;
             }
+        }
+    }
+    /// <summary>
+    /// Default MonoBehavior Update().
+    /// </summary>
+    private void Update()
+    {
+        if (ray)
+        {
+            if (ray.GetCurrentRaycastHit(out RaycastHit raycastHit))
+            {
+                const float scaleOffset = 0.015f;
+                lineVisual.reticle.transform.localScale = new Vector3(
+                    scaleOffset, scaleOffset, scaleOffset) + Vector3.one * raycastHit.distance
+                    * lineVisualReticleScaleFactor;
+            }
+        }
+    }
+    /// <summary>
+    /// Default MonoBehavior LateUpdate().
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (nextFrameCommands != NextFrameCommands.NOTHING)
+        {
+            switch (nextFrameCommands)
+            {
+                case NextFrameCommands.ADD_DIRECT:
+                    AddDirect();
+                    break;
+
+                case NextFrameCommands.ADD_RAY:
+                    AddRay();
+                    break;
+            }
+
+            nextFrameCommands = NextFrameCommands.NOTHING;
+            Destroy(GameObject.Find(controllerAttachName));
         }
     }
 
     /// <summary>
-    /// Callbacks configuration to XRBaseInteractors
+    /// Setup to add a XRRayInteraction and a XRLineInteraction component.
     /// </summary>
-    private void eventConfiguration()
+    private void AddRay()
     {
-        GetComponent<XRBaseInteractor>().onSelectEnter.AddListener(interactable =>
-        {
-            isSelectingAnObject = true;
-        });
+        ray = gameObject.AddComponent<XRRayInteractor>();
+        lineVisual = gameObject.AddComponent<XRInteractorLineVisual>();
 
-        GetComponent<XRBaseInteractor>().onSelectExit.AddListener(interactable =>
-        {
-            isSelectingAnObject = false;
-        });
+        rayAndDirect.RayCopy(ray);
+        rayAndDirect.LineVisualCopy(lineVisual);
+        lineVisual.reticle = lineVisualReticle;
+
+        gameObject.GetComponent<LineRenderer>().enabled = true;
+
+        SetLineAttachTransform(ray.attachTransform);
     }
 
     /// <summary>
-    /// Setup to add a XRRayInteraction and a XRLineInteraction component
+    /// Setup to add a XRDirectInteraction component.
     /// </summary>
-    private void addRay()
+    public void AddDirect()
     {
-        XRRayInteractor ray = gameObject.AddComponent<XRRayInteractor>();
-        XRInteractorLineVisual line = gameObject.AddComponent<XRInteractorLineVisual>();
-        RaySO raySO = rayAndDirect.raySo.clone();
-        ray = raySO.ray;
-        line = raySO.line;
+        lineVisualReticle.SetActive(false);
 
-        GetComponent<SphereCollider>().enabled = false;
+        direct = gameObject.AddComponent<XRDirectInteractor>();
+        rayAndDirect.DirectCopy(direct);
 
+        SetHandAttachTransform(direct.attachTransform);
+    }
+
+    /// <summary>
+    /// Send to a receptor the attach ray transform members.
+    /// </summary>
+    /// <param name="receptor">The transform that will receive the members.</param>
+    private void SetLineAttachTransform(Transform receptor)
+    {
         if (attachRayTransform != null)
         {
-            ray.attachTransform.position = attachRayTransform.position;
-            ray.attachTransform.rotation = attachRayTransform.rotation;
+            receptor.position = attachRayTransform.position;
+            receptor.rotation = attachRayTransform.rotation;
+            receptor.localScale = attachRayTransform.localScale;
         }
     }
 
     /// <summary>
-    /// Setup to add a XRDirectInteraction component
+    /// Send to a receptor the attach hand point transform members.
     /// </summary>
-    private void addDirect()
+    /// <param name="receptor">The transform that will receive the members.</param>
+    private void SetHandAttachTransform(Transform receptor)
     {
-        XRDirectInteractor direct = gameObject.AddComponent<XRDirectInteractor>();
-        direct = rayAndDirect.directSo.clone().direct;
-
-        GetComponent<SphereCollider>().enabled = true;
+        if (attachDirectTransform != null)
+        {
+            receptor.position = attachDirectTransform.position;
+            receptor.rotation = attachDirectTransform.rotation;
+            receptor.localScale = attachDirectTransform.localScale;
+        }
     }
 }

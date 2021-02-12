@@ -1,22 +1,28 @@
-﻿using NaughtyAttributes;
+﻿using InputManager;
+using NaughtyAttributes;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using static UnityEngine.XR.Interaction.Toolkit.XRBaseInteractable;
 
 /// <summary>
-/// Class that permits a bunch of interactions with a joystick in an object
+/// Class that permits a bunch of interactions with a joystick in an object.
 /// </summary>
-[RequireComponent(typeof(XRGrabInteractable), typeof(Rigidbody))]
+[RequireComponent(typeof(XRGrabInteractable))]
 public class MoveWithJoystick : MonoBehaviour
 {
-    private enum AxisToRotate
-    {
-        x,
-        y,
-        z
-    };
-    private AxisToRotate axisToRotate = AxisToRotate.y;
+    /// <summary>
+    /// The player's GameObject.
+    /// </summary>
+    public GameObject player;
+    /// <summary>
+    /// Material to set the object on hover enter it.
+    /// </summary>
+    public Material onHoverEnterMaterial;
+    /// <summary>
+    /// Material to set the object on select enter it.
+    /// </summary>
+    public Material onSelectEnterMaterial;
 
     /// <summary>
     /// Will you use the translation interaction?
@@ -32,69 +38,109 @@ public class MoveWithJoystick : MonoBehaviour
     public bool useScaleInteraction;
 
     /// <summary>
-    /// Speed of vertical translation
+    /// Speed the object uses to get towards the controller.
     /// </summary>
     [ShowIf("useTranslationInteraction")]
-    public float speedVertical = 10f;
+    public float speedTowards = -4f;
+
     /// <summary>
-    /// Speed of horizontal translation
-    /// </summary>
-    [ShowIf("useTranslationInteraction")]
-    public float speedHorizontal = 10f;
-    /// <summary>
-    /// Speed of rotation
+    /// Speed of rotation.
     /// </summary>
     [ShowIf("useRotationInteraction")]
     public float rotationSpeed = 10f;
     /// <summary>
-    /// Speed to scale
+    /// The GameObject to be shown when the object is on rotation interaction;
+    /// </summary>
+    [ShowIf("useRotationInteraction")]
+    public GameObject rotationMarkerGameObject;
+
+    /// <summary>
+    /// Speed to scale.
     /// </summary>
     [ShowIf("useScaleInteraction")]
     public float scalingSpeed = 10f;
-
     /// <summary>
-    /// The minimum scale magnitude of the object
+    /// The minimum scale magnitude of the object.
     /// </summary>
     [ShowIf("useScaleInteraction")]
     public float minScaleMagnitude = 0.5f;
     /// <summary>
-    /// The maximum scale magnitude of the object 
+    /// The maximum scale magnitude of the object.
     /// </summary>
     [ShowIf("useScaleInteraction")]
     public float maxScaleMagnitude = 5f;
+    /// <summary>
+    /// The GameObject to be shown when the object is on scale interaction;
+    /// </summary>
+    [ShowIf("useScaleInteraction")]
+    public GameObject scaleMarkerGameObject;
 
     /// <summary>
-    /// A SnapTurnProvider reference from XRRig
+    /// Multiplication factor of the vector direction when the object is following the player.
     /// </summary>
-    public SnapTurnProvider snap;
-    /// <summary>
-    /// A Walk reference from XRRig
-    /// </summary>
-    public WalkSystemBase walk;
+    public float vectorDirectionMultiplicationFactor = 1.5f;
 
     /// <summary>
-    /// The minimum distance to attach an object in a controller
+    /// The minimum distance to attach an object in a controller.
     /// </summary>
     public float minDistanceToAttach = 0.1f;
 
+    [Header("Input buttons")]
+    [Required]
     /// <summary>
-    /// Enum of possible interactions types
+    /// Axis handle 2d equivalent to both hands.
     /// </summary>
-    public enum InteractionStates
-    {
-        translading,
-        rotating,
-        scaling,
-        any
-    };
-    private InteractionStates states = 0;
+    public AxisHandler2D axixHandle2D = null;
+    /// <summary>
+    /// Button to change the interaction of the object.
+    /// </summary>
+    public ButtonHandler changeInteractionButton = null;
+    /// <summary>
+    /// Button handle to control axis rotation.
+    /// </summary>
+    public ButtonHandler changeRotationAxisButton = null;
 
     /// <summary>
-    /// The controller XRGrabInteractable reference
+    /// Enum of possible interactions types.
+    /// </summary>
+    private enum InteractionStates
+    {
+        ROTATING,
+        SCALING,
+        ANY
+    };
+    /// <summary>
+    /// Instance of InteractionStates enum.
+    /// </summary>
+    private InteractionStates states = 0;
+    /// <summary>
+    /// Enum of axis.
+    /// </summary>
+    private enum AxisToRotate
+    {
+        X,
+        Y,
+        Z
+    };
+    /// <summary>
+    /// Instance of AxisToRotate enum.
+    /// </summary>
+    private AxisToRotate axisToRotate = AxisToRotate.Y;
+    /// <summary>
+    /// A SnapTurnProvider reference from XRRig.
+    /// </summary>
+    private SnapTurnProvider snap;
+    /// <summary>
+    /// A Walk reference from XRRig.
+    /// </summary>
+    private WalkSystemBase walk;
+
+    /// <summary>
+    /// The controller XRGrabInteractable reference.
     /// </summary>
     private XRGrabInteractable grabInteractable;
     /// <summary>
-    /// The controller transform
+    /// The controller transform.
     /// </summary>
     private Transform controllerTransform;
     /// <summary>
@@ -102,11 +148,11 @@ public class MoveWithJoystick : MonoBehaviour
     /// </summary>
     private bool isInputLeft;
     /// <summary>
-    /// The vertical axis reference
+    /// The vertical axis reference.
     /// </summary>
     private float verticalAxis;
     /// <summary>
-    /// The horizontal axis reference
+    /// The horizontal axis reference.
     /// </summary>
     private float horizontalAxis;
     /// <summary>
@@ -114,11 +160,11 @@ public class MoveWithJoystick : MonoBehaviour
     /// </summary>
     private bool isRayInteractor;
     /// <summary>
-    /// MovementType of the controller
+    /// MovementType of the controller.
     /// </summary>
     private MovementType movementType;
     /// <summary>
-    /// Line length of a ray interactor
+    /// Line length of a ray interactor.
     /// </summary>
     private float lineLength;
     /// <summary>
@@ -126,238 +172,360 @@ public class MoveWithJoystick : MonoBehaviour
     /// </summary>
     private bool startsTrackedPosition;
     /// <summary>
-    /// The starter scale of the object
+    /// The starter scale of the object.
     /// </summary>
     private Vector3 starterScale;
     /// <summary>
-    /// The vector direction to object translate
+    /// The position of the controller at the start of frame.
     /// </summary>
-    private Vector3 vectorDirection;
+    private Vector3 controllerPositionOnStartOfFrame;    
     /// <summary>
-    /// The position of the controller at the start of frame
+    /// The local position of the controller at the start of frame.
     /// </summary>
-    private Vector3 controllerPositionOnStartOfFrame;
+    private Vector3 controllerLocalPositionOnStartOfFrame;    
     /// <summary>
-    /// The position of the object when it is selected
+    /// The y euler angle of the controller at the start of frame.
+    /// </summary>
+    private float controllerYEulerAngleOnStartOfFrame;
+    /// <summary>
+    /// The position of the object when it is selected.
     /// </summary>
     private Vector3 transformPositionOnSelect;
     /// <summary>
-    /// The proper object's rigidbody
+    /// The proper object's meshRenderer.
     /// </summary>
-    private new Rigidbody rigidbody;
+    private MeshRenderer meshRenderer;
+    /// <summary>
+    /// The original material of the object.
+    /// </summary>
+    private Material originalMaterial;
+    /// <summary>
+    /// Is the position of the object being interpolated?
+    /// </summary>
     private bool isInterpolatingPosition;
 
-    void Start()
+    /// <summary>
+    /// Default MonoBehavior Start().
+    /// </summary>
+    private void Start()
     {
-        if (useTranslationInteraction)
-            states = InteractionStates.translading;
-        else if (useRotationInteraction)
-            states = InteractionStates.rotating;
+        walk = player.GetComponent<WalkSystemBase>();
+        snap = player.GetComponent<SnapTurnProvider>();
+
+        if (useRotationInteraction)
+        {
+            states = InteractionStates.ROTATING;
+        }
         else if (useScaleInteraction)
-            states = InteractionStates.scaling;
+        {
+            states = InteractionStates.SCALING;
+        }
         else
-            states = InteractionStates.any;
+        {
+            states = InteractionStates.ANY;
+        }
 
         grabInteractable = GetComponent<XRGrabInteractable>();
-        movementType = grabInteractable.movementType;
 
         startsTrackedPosition = grabInteractable.trackPosition;
         starterScale = gameObject.transform.localScale;
 
-        rigidbody = GetComponent<Rigidbody>();
+        meshRenderer = GetComponent<MeshRenderer>();
+        originalMaterial = meshRenderer.material;
 
-        grabInteractable.onSelectEnter.AddListener((interactor) => {
-            controllerTransform = interactor.transform;
-            transformPositionOnSelect = transform.position;
-
-            isRayInteractor = interactor as XRRayInteractor;
-
-            grabInteractable.movementType = (isRayInteractor ? movementType : MovementType.Kinematic);
-
-            isInputLeft = interactor.GetComponent<XRController>().controllerNode == UnityEngine.XR.XRNode.LeftHand;
-
-            if (isRayInteractor)
+        grabInteractable.onHoverEnter.AddListener(SetOnHoverEnterMaterial);
+        grabInteractable.onHoverExit.AddListener((interactor) =>
+        {
+            if (grabInteractable.isSelected)
             {
-                if (!startsTrackedPosition)
-                    SetInteractions(false);
-
-                var ray = interactor.GetComponent<XRRayInteractor>();
-                lineLength = ray.maxRaycastDistance;
-
-                ray.maxRaycastDistance = 0;
+                return;
             }
+            SetToOriginalMaterial(interactor);
         });
 
-        grabInteractable.onSelectExit.AddListener((interactor) => {
+        grabInteractable.onSelectEnter.AddListener(OnSelectEnterConfiguration);
+        grabInteractable.onSelectExit.AddListener(OnSelectExitConfiguration);
 
-            grabInteractable.trackPosition = startsTrackedPosition;
-
-            if (isRayInteractor)
-            {
-                interactor.GetComponent<XRRayInteractor>().maxRaycastDistance = lineLength;
-            }
-
-            SetInteractions(true);
-        });
+        if (changeRotationAxisButton)
+        {
+            changeRotationAxisButton.OnButtonUp += ChangeRotationAxisButtonUp;
+        }
+        if (changeInteractionButton)
+        {
+            changeInteractionButton.OnButtonUp += ChangeInteractionButtonUp;
+        }
+        axixHandle2D.OnValueChange += AxisValuesChange;
     }
 
+    /// <summary>
+    /// Method to set the material of the object in to the onHoverEnterMaterial.
+    /// </summary>
+    /// <param name="interactor">The interactor that hovers the material.</param>
+    private void SetOnHoverEnterMaterial(XRBaseInteractor interactor)
+    {
+        meshRenderer.material = onHoverEnterMaterial;
+    }
+    /// <summary>
+    /// Set the object to its original material.
+    /// </summary>
+    /// <param name="interactor">The interactor that hovers the material.</param>
+    private void SetToOriginalMaterial(XRBaseInteractor interactor)
+    {
+        meshRenderer.material = originalMaterial;
+    }
+
+    /// <summary>
+    /// Main configuration of OnSelectEnter of the grabInteractable.
+    /// </summary>
+    /// <param name="interactor">The interactor that selects the interactable.</param>
+    private void OnSelectEnterConfiguration(XRBaseInteractor interactor)
+    {
+        if(states == InteractionStates.ROTATING)
+        {
+            rotationMarkerGameObject.SetActive(true);
+        }
+        else if(states == InteractionStates.SCALING)
+        {
+            scaleMarkerGameObject.SetActive(true);
+        }
+        meshRenderer.material = onSelectEnterMaterial;
+
+        controllerTransform = interactor.transform;
+        transformPositionOnSelect = transform.position;
+
+        isInputLeft = interactor.GetComponent<XRController>().controllerNode == UnityEngine.XR.XRNode.LeftHand;
+
+        isRayInteractor = interactor as XRRayInteractor;
+
+        if (isRayInteractor)
+        {
+            if (!startsTrackedPosition)
+            {
+                SetInteractions(false);
+            }
+
+            var ray = interactor.GetComponent<XRRayInteractor>();
+            lineLength = ray.maxRaycastDistance;
+
+            ray.maxRaycastDistance = 0;
+        }
+        else
+        {
+            movementType = grabInteractable.movementType;
+            grabInteractable.movementType = MovementType.Kinematic;
+        }
+    }
+    /// <summary>
+    /// Main configuration of OnSelectExit of the grabInteractable.
+    /// </summary>
+    /// <param name="interactor">The interactor that selects the interactable.</param>
+    private void OnSelectExitConfiguration(XRBaseInteractor interactor)
+    {
+        if (states == InteractionStates.ROTATING)
+        {
+            rotationMarkerGameObject.SetActive(false);
+        }
+        else if (states == InteractionStates.SCALING)
+        {
+            scaleMarkerGameObject.SetActive(false);
+        }
+        meshRenderer.material = originalMaterial;
+
+        grabInteractable.trackPosition = startsTrackedPosition;
+
+        if (isRayInteractor)
+        {
+            interactor.GetComponent<XRRayInteractor>().maxRaycastDistance = lineLength;
+        }
+        else
+        {
+            grabInteractable.movementType = movementType;
+        }
+
+        SetInteractions(true);
+    }
+
+    /// <summary>
+    /// Default MonoBehavior FixedUpdate().
+    /// </summary>
     private void FixedUpdate()
     {
-        if (controllerTransform != null && !isInterpolatingPosition)
-            controllerPositionOnStartOfFrame = controllerTransform.position;
-
-        if (grabInteractable.isSelected && isRayInteractor && !isInterpolatingPosition)
+        if (!isInterpolatingPosition)
         {
-            StartCoroutine(InterpolatePosition());
+            if (controllerTransform != null)
+            {
+                controllerPositionOnStartOfFrame = controllerTransform.position;
+                controllerLocalPositionOnStartOfFrame = controllerTransform.localPosition;
+                controllerYEulerAngleOnStartOfFrame = player.transform.eulerAngles.y;
+            }
+
+            if (grabInteractable.isSelected && !grabInteractable.trackPosition)
+            {
+                StartCoroutine(InterpolatePosition());
+            }
         }
     }
-
-    void Update()
+    /// <summary>
+    ///  changeRotationAxisButton handler Button up event. 
+    /// </summary>
+    /// <param name="controller">The controller that triggers the event.</param>
+    private void ChangeRotationAxisButtonUp(XRController controller)
     {
-        if (!grabInteractable.isSelected)
+        if (!grabInteractable.isSelected || states != InteractionStates.ROTATING
+            || grabInteractable.selectingInteractor != 
+            controller.GetComponent<XRBaseInteractor>())
+        {
             return;
-
-        if (Input.GetKeyDown(OculusInput.RightHandThumbstick))
-        {
-            if (useRotationInteraction && useTranslationInteraction)
-                states = (states == InteractionStates.rotating ? InteractionStates.translading : InteractionStates.rotating);
-            //At here until 'else' is just in case the flags change in runtime futurely
-            else if (useRotationInteraction)
-                states = InteractionStates.rotating;
-            else if (useTranslationInteraction)
-                states = InteractionStates.translading;
-            else
-                states = InteractionStates.any;
         }
 
-        else if (Input.GetKeyDown(OculusInput.LeftHandThumbstick))
+        if (axisToRotate == AxisToRotate.Z)
         {
-            if (useScaleInteraction && useTranslationInteraction)
-                states = (states == InteractionStates.scaling ? InteractionStates.translading : InteractionStates.scaling);
-            //At here until 'else' is just in case the flags change in runtime futurely
-            else if (useScaleInteraction)
-                states = InteractionStates.scaling;
-            else if (useTranslationInteraction)
-                states = InteractionStates.translading;
-            else
-                states = InteractionStates.any;
+            axisToRotate = AxisToRotate.X;
+            rotationMarkerGameObject.transform.localEulerAngles = new Vector3(0, 0, 90);
+        }
+        else if (axisToRotate == AxisToRotate.Y)
+        {
+            axisToRotate = AxisToRotate.Z;
+            rotationMarkerGameObject.transform.localEulerAngles = new Vector3(0,0,-45);
+        }
+        else
+        {
+            axisToRotate = AxisToRotate.Y;
+            rotationMarkerGameObject.transform.localEulerAngles = Vector3.zero;
         }
     }
-
-    void LateUpdate()
+    /// <summary>
+    /// Change interaction button up event.
+    /// </summary>
+    /// <param name="controller">The controller that triggers the event.</param>
+    private void ChangeInteractionButtonUp(XRController controller)
     {
-
-        if (grabInteractable.isSelected)
+        if (!grabInteractable.isSelected || grabInteractable.selectingInteractor !=
+            controller.GetComponent<XRBaseInteractor>())
         {
+            return;
+        }
 
-            if (isInputLeft)
+        switch (states)
+        {
+            case InteractionStates.ROTATING:
+                if (useScaleInteraction)
+                {
+                    states = InteractionStates.SCALING;
+                    scaleMarkerGameObject.SetActive(true);
+                    rotationMarkerGameObject.SetActive(false);
+                }
+                break;
+            case InteractionStates.SCALING:
+                RecheckScale();
+                if (useRotationInteraction)
+                {
+                    states = InteractionStates.ROTATING;
+                    scaleMarkerGameObject.SetActive(false);
+                    rotationMarkerGameObject.SetActive(true);
+                }
+                break;
+        }
+    }
+    /// <summary>
+    /// The event called when values of the 2d axis stick have changed.
+    /// </summary>
+    /// <param name="controller">The controller that triggers the event.</param>
+    private void AxisValuesChange(XRController controller, Vector2 value)
+    {
+        if (!grabInteractable.isSelected || grabInteractable.trackPosition)
+        {
+            return;
+        }
+
+        if (controller.controllerNode == UnityEngine.XR.XRNode.LeftHand && isInputLeft || !isInputLeft && controller.controllerNode == UnityEngine.XR.XRNode.RightHand)
+        {
+            verticalAxis = value.y;
+            horizontalAxis = value.x;
+        }
+
+        if (useTranslationInteraction)
+        {
+            if (Mathf.Abs(verticalAxis) > 0.7f)
             {
-                verticalAxis = OculusInput.LeftHandVerticalAxis;
-                horizontalAxis = OculusInput.LeftHandHorizontalAxis;
+                TransladingInteraction();
             }
-            else
-            {
-                verticalAxis = OculusInput.RightHandVerticalAxis;
-                horizontalAxis = OculusInput.RightHandHorizontalAxis;
-            }
+        }
 
-            if (states == InteractionStates.translading)
+        if (states == InteractionStates.ROTATING)
+        {
+            if (Mathf.Abs(horizontalAxis) > 0.7f)
             {
-                if (isRayInteractor)
-                    TransladingInteraction();
-            }
-
-            else if (states == InteractionStates.rotating)
-            {
-
                 RotatingInteraction();
             }
-
-            else if (states == InteractionStates.scaling)
+        }
+        else if (states == InteractionStates.SCALING)
+        {
+            if (Mathf.Abs(horizontalAxis) > 0.7f)
             {
                 ScaleInteraction();
             }
-
-            AdjustMovements();
         }
-
-        else
-            rigidbody.velocity = Vector3.zero;
+        AdjustMovements();
     }
 
     /// <summary>
-    /// Set rigidbody's velocity
-    /// </summary>
-    private void TransladingInteraction()
-    {
-        float xrRigY = controllerTransform.eulerAngles.y * Mathf.Deg2Rad;
-
-        rigidbody.velocity = new Vector3(Mathf.Sin(xrRigY), -Mathf.Sin(controllerTransform.eulerAngles.x * Mathf.Deg2Rad) / 3.3333333f,
-            Mathf.Cos(xrRigY)) * verticalAxis * speedVertical;
-
-        xrRigY += 90;
-        rigidbody.velocity += new Vector3(Mathf.Sin(xrRigY), 0,
-            Mathf.Cos(xrRigY)) * horizontalAxis * speedHorizontal;
-    }
-
-    /// <summary>
-    /// Set grabInteractable.trackPosition then call SetInteraction(bool state) with a proper parameter
+    /// Set grabInteractable.trackPosition then call SetInteraction(bool state) with a proper parameter.
     /// </summary>
     private void AdjustMovements()
     {
         if (!startsTrackedPosition && !grabInteractable.trackPosition)
         {
-            grabInteractable.trackPosition = (Vector3.Distance(gameObject.transform.position, controllerTransform.position) <= minDistanceToAttach);
+            grabInteractable.trackPosition = (Vector3.Distance(gameObject.transform.position, controllerTransform.position) <= minDistanceToAttach)
+                || !isRayInteractor;
         }
 
-        SetInteractions(grabInteractable.trackPosition && states == InteractionStates.translading);
+        SetInteractions(grabInteractable.trackPosition && states == InteractionStates.ROTATING);
     }
 
     /// <summary>
-    /// Set transform's euler angles
+    /// Moving the object based on vertical and horizontal axis values. 
+    /// </summary>
+    private void TransladingInteraction()
+    {
+        transform.position = Vector3.MoveTowards(transform.position, controllerTransform.position, Time.deltaTime * speedTowards *
+                verticalAxis);
+    }
+    /// <summary>
+    /// Set transform's euler angles.
     /// </summary>
     private void RotatingInteraction()
     {
-        if (!grabInteractable.isSelected)
-            return;
-
         switch (axisToRotate)
         {
-            case AxisToRotate.x:
-                transform.eulerAngles += new Vector3(rotationSpeed * horizontalAxis, 0, 0);
+            case AxisToRotate.X:
+                transform.RotateAround(transform.localPosition, transform.right, 
+                    rotationSpeed * horizontalAxis * Time.deltaTime);
                 break;
-            case AxisToRotate.y:
-                transform.eulerAngles += new Vector3(0, rotationSpeed * horizontalAxis, 0);
+            case AxisToRotate.Y:
+                transform.RotateAround(transform.localPosition, transform.up,
+                    rotationSpeed * horizontalAxis * Time.deltaTime);
                 break;
-            case AxisToRotate.z:
-                transform.eulerAngles += new Vector3(0, 0, rotationSpeed * horizontalAxis);
+            case AxisToRotate.Z:
+                transform.RotateAround(transform.localPosition, transform.forward,
+                    rotationSpeed * horizontalAxis * Time.deltaTime);
                 break;
-        }
-
-        if (Input.GetKeyDown(OculusInput.ButtonA))
-        {
-            if (axisToRotate == AxisToRotate.z)
-                axisToRotate = AxisToRotate.x;
-            else
-                axisToRotate++;
         }
     }
-
     /// <summary>
-    /// Scale the object with the joystick
+    /// Scale the object with the joystick.
     /// </summary>
     private void ScaleInteraction()
     {
-        if (verticalAxis < 0)
+        if (horizontalAxis < 0)
         {
             if (transform.localScale.magnitude > minScaleMagnitude && transform.localScale.x > 0 &&
                 transform.localScale.y > 0 &&
                 transform.localScale.z > 0)
             {
 
-                transform.localScale += new Vector3(1, 1, 1) * verticalAxis * Time.deltaTime * scalingSpeed;
+                transform.localScale += Vector3.one * horizontalAxis * Time.deltaTime * scalingSpeed;
             }
-
             else
             {
                 transform.localScale = starterScale * (minScaleMagnitude / starterScale.magnitude);
@@ -367,15 +535,36 @@ public class MoveWithJoystick : MonoBehaviour
         {
             if (transform.localScale.magnitude < maxScaleMagnitude)
             {
-                transform.localScale += new Vector3(1, 1, 1) * verticalAxis * Time.deltaTime * scalingSpeed;
+                transform.localScale += Vector3.one * horizontalAxis * Time.deltaTime * scalingSpeed;
+            }
+            else
+            {
+                transform.localScale = starterScale * (maxScaleMagnitude / starterScale.magnitude);
             }
         }
     }
 
     /// <summary>
-    /// Enable/Disable Walk and SnapTurnProviderComponent
+    /// Method to recheck the scale of the object after leave scale interaction.
     /// </summary>
-    /// <param name="state">Do you want to enable(True) or disable(False) a component?</param>
+    private void RecheckScale()
+    {
+        if (transform.localScale.magnitude < minScaleMagnitude || transform.localScale.x < 0 ||
+                transform.localScale.y < 0 ||
+                transform.localScale.z < 0)
+        {
+            transform.localScale = starterScale * (minScaleMagnitude / starterScale.magnitude);
+        }
+        else if (transform.localScale.magnitude > maxScaleMagnitude)
+        {
+            transform.localScale = starterScale * (maxScaleMagnitude / starterScale.magnitude);
+        }
+    }
+
+    /// <summary>
+    /// Enable/Disable WalkSystemBase or (exclusive) SnapTurnProvider component.
+    /// </summary>
+    /// <param name="state">Do you want to enable(true) or disable(false) a component?</param>
     private void SetInteractions(bool state)
     {
         if (isInputLeft)
@@ -383,9 +572,13 @@ public class MoveWithJoystick : MonoBehaviour
             if (walk)
             {
                 if (walk.useLeftThumbstick)
+                {
                     walk.enabled = state;
+                }
                 else if (snap)
+                {
                     snap.enabled = state;
+                }
             }
             else if (snap)
             {
@@ -397,9 +590,13 @@ public class MoveWithJoystick : MonoBehaviour
             if (walk)
             {
                 if (walk.useLeftThumbstick && snap != null)
+                {
                     snap.enabled = state;
+                }
                 else
+                {
                     walk.enabled = state;
+                }
             }
             else if (snap)
             {
@@ -409,7 +606,7 @@ public class MoveWithJoystick : MonoBehaviour
     }
 
     /// <summary>
-    /// Make the object mirror the controller movements
+    /// Make the object mirror the controller movements.
     /// </summary>
     private IEnumerator InterpolatePosition()
     {
@@ -417,9 +614,18 @@ public class MoveWithJoystick : MonoBehaviour
         yield return new WaitForEndOfFrame();
 
         //Calculating vector direction
-        vectorDirection = controllerTransform.position - controllerPositionOnStartOfFrame;
+        Vector3 vectorDirection = controllerTransform.localPosition - 
+            controllerLocalPositionOnStartOfFrame;
+        transform.position += vectorDirection * vectorDirectionMultiplicationFactor;
 
-        transform.position += vectorDirection * 1.5f;
+        vectorDirection = controllerTransform.position - 
+            controllerPositionOnStartOfFrame;
+        transform.position += vectorDirection;
+
+        float yDirection = player.transform.eulerAngles.y -
+            controllerYEulerAngleOnStartOfFrame;
+        transform.RotateAround(controllerTransform.position,
+            transform.up, yDirection);
 
         isInterpolatingPosition = false;
     }

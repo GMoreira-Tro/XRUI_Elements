@@ -1,51 +1,34 @@
-﻿using UnityEngine;
+﻿using InputManager;
+using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 
 /// <summary>
-/// Class that permits a locomotion system with one of the joysticks thumbstick through changing xr rig transform.position
+/// Class that permits a locomotion system with one of the joysticks thumbstick through changing xr rig transform.position.
 /// </summary>
 public class NoPhysicsPseudoWalk : WalkSystemBase
 {
-    void Update()
+    /// <summary>
+    /// Axis handle 2d equivalent to both hands.
+    /// </summary>
+    public AxisHandler2D AxixHandle2D = null;
+
+    /// <summary>
+    /// Default MonoBehavior Start().
+    /// </summary>
+    private void Start()
     {
-        if (useLeftThumbstick)
+        AxixHandle2D.OnValueChange += AxisValuesChange;
+    }
+    /// <summary>
+    /// The event called when values of the 2d axis stick has changed.
+    /// </summary>
+    /// <param name="controller">The controller that triggers the event.</param>
+    protected void AxisValuesChange(XRController controller, Vector2 value)
+    {
+        if (this.isActiveAndEnabled && (controller.controllerNode == UnityEngine.XR.XRNode.LeftHand && useLeftThumbstick || !useLeftThumbstick && controller.controllerNode == UnityEngine.XR.XRNode.RightHand))
         {
-            transform.position += CalculateVelocityMultiplicationFactor() * OculusInput.LeftHandVerticalAxis;
-
-            transform.eulerAngles += CalculateMaxAngleToMoveInFrame() * OculusInput.LeftHandHorizontalAxis;
+            transform.position += CalculateVelocityMultiplicationFactor() * -value.y;
+            transform.eulerAngles += CalculateMaxAngleToMoveInFrame() * value.x;
         }
-        else
-        {
-            transform.position += CalculateVelocityMultiplicationFactor() * OculusInput.RightHandVerticalAxis;
-
-            transform.eulerAngles += CalculateMaxAngleToMoveInFrame() * OculusInput.RightHandHorizontalAxis;
-        }
-    }
-
-    /// <summary>
-    /// The vector direction pointed according to y euler angle of the camera transform
-    /// </summary>
-    /// <returns></returns>
-    private Vector3 DirectionVector()
-    {
-        return new Vector3(Mathf.Sin(cameraTransform.eulerAngles.y * Mathf.Deg2Rad), 0,
-            Mathf.Cos(cameraTransform.eulerAngles.y * Mathf.Deg2Rad));
-    }
-
-    /// <summary>
-    /// Calculate the factor to multiplicate with rigidbody's velocity
-    /// </summary>
-    /// <returns> The factor calculated </returns>
-    private Vector3 CalculateVelocityMultiplicationFactor()
-    {
-        return DirectionVector() * Time.deltaTime * translationSpeed;
-    }
-
-    /// <summary>
-    /// Calculate the max angle that a single frame can rotate
-    /// </summary>
-    /// <returns> The angle calculated </returns>
-    private Vector3 CalculateMaxAngleToMoveInFrame()
-    {
-        return Vector3.up * Time.deltaTime * rotationSpeed;
     }
 }

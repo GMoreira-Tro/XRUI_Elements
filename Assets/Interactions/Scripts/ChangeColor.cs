@@ -2,44 +2,65 @@
 using UnityEngine.XR.Interaction.Toolkit;
 
 /// <summary>
-/// ONLY TEST CLASS... MY FIRST PLAY IN VR - GUILHERME
+/// For fun class. My first class on VR. This class changes the color of an object using the index trigger of Oculus joysticks. By: Guilherme Moreira.
 /// </summary>
+[RequireComponent(typeof(XRGrabInteractable), typeof(MeshRenderer))]
 public class ChangeColor : MonoBehaviour
 {
-    XRGrabInteractable grabInteractable;
-    Color initialColor;
-    Material rendererMaterial;
+    /// <summary>
+    /// The XRGrabInteractable component of the object.
+    /// </summary>
+    private XRGrabInteractable grabInteractable;
+    /// <summary>
+    /// The initial color of the object.
+    /// </summary>
+    private Color initialColor;
+    /// <summary>
+    /// The material of the object.
+    /// </summary>
+    private Material rendererMaterial;
 
-    void Start()
+    /// <summary>
+    /// Default MonoBehavior Start().
+    /// </summary>
+    private void Start()
     {
         grabInteractable = GetComponent<XRGrabInteractable>();
 
         grabInteractable.onActivate.AddListener(SetColor);
 
-        grabInteractable.onHoverExit.AddListener(ResetColor);
+        grabInteractable.onHoverExit.AddListener((interactor) =>
+            {
+                ResetColor();
+            }
+        );
 
         initialColor = GetComponent<MeshRenderer>().material.color;
 
         rendererMaterial = GetComponent<MeshRenderer>().material;
     }
 
+    /// <summary>
+    /// Default MonoBehavior OnDestroy().
+    /// </summary>
     private void OnDestroy()
     {
         grabInteractable.onActivate.RemoveListener(SetColor);
     }
 
+    /// <summary>
+    /// Set a diferent color for the object (will always be a diferent color).
+    /// </summary>
+    /// <param name="interactor">The interactor reference.</param>
     public void SetColor(XRBaseInteractor interactor)
     {
-        /*if (interactor.GetComponent<XRController>().controllerNode != UnityEngine.XR.XRNode.RightHand)
-            return;*/
-
-        int rnd;
+        int randomInt;
 
         if(interactor.GetComponent<XRController>().controllerNode == UnityEngine.XR.XRNode.RightHand)
         {
             if (rendererMaterial.color.Equals(Color.green))
             {
-                rnd = new System.Random().Next(1, 4);
+                randomInt = new System.Random().Next(1, 4);
             }
             else
             {
@@ -47,26 +68,26 @@ public class ChangeColor : MonoBehaviour
                 if (rendererMaterial.color.Equals(Color.yellow))
                 {
                     lb.Remove(lb[1]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else if (rendererMaterial.color.Equals(Color.blue))
                 {
                     lb.Remove(lb[2]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else if (rendererMaterial.color.Equals(Color.red))
                 {
                     lb.Remove(lb[3]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else
                 {
                     lb.Remove(lb[4]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
             }
 
-            switch (rnd)
+            switch (randomInt)
             {
                 case 0:
                     rendererMaterial.color = Color.green;
@@ -89,7 +110,7 @@ public class ChangeColor : MonoBehaviour
         {
             if (rendererMaterial.color.Equals(Color.cyan))
             {
-                rnd = new System.Random().Next(1, 4);
+                randomInt = new System.Random().Next(1, 4);
             }
             else
             {
@@ -97,26 +118,26 @@ public class ChangeColor : MonoBehaviour
                 if (rendererMaterial.color.Equals(Color.gray))
                 {
                     lb.Remove(lb[1]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else if (rendererMaterial.color.Equals(Color.magenta))
                 {
                     lb.Remove(lb[2]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else if (rendererMaterial.color.Equals(Color.clear))
                 {
                     lb.Remove(lb[3]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
                 else
                 {
                     lb.Remove(lb[4]);
-                    rnd = lb[new System.Random().Next(4)];
+                    randomInt = lb[new System.Random().Next(4)];
                 }
             }
 
-            switch (rnd)
+            switch (randomInt)
             {
                 case 0:
                     rendererMaterial.color = Color.cyan;
@@ -137,7 +158,10 @@ public class ChangeColor : MonoBehaviour
         }
     }
 
-    public void ResetColor(XRBaseInteractor interactor)
+    /// <summary>
+    /// Reset to initial color.
+    /// </summary>
+    public void ResetColor()
     {
         rendererMaterial.color = initialColor;
     }
